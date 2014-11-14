@@ -24,13 +24,9 @@ def arguments(*arg_types, **kwarg_types):
 
 
 def is_method(func, self):
-    for name in dir(self):
-        if name == func.__name__:
-            attr = getattr(self, name)
-            im_func = getattr(attr, 'im_func', None)
-            if getattr(im_func, 'undecorated', None) is func:
-                return True
-    return False
+    method = getattr(self, func.__name__, None)
+    im_func = getattr(method, 'im_func', None)
+    return getattr(im_func, 'undecorated', None) is func
 
 
 def verify_argument(argument, expected_type, label):
