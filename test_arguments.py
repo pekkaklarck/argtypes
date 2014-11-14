@@ -47,6 +47,7 @@ def test_invalid_kwarg():
         function2('should be bool', arg3=MyClass())
     _verify_error(exc.value, bool, MyClass, label='arg3')
 
+
 def test_multiple_types():
     @arguments((int, str, dict))
     def func(arg):
@@ -66,6 +67,17 @@ def test_convert_to_base_types():
         def func(arg):
             return arg
         assert func(input) == type(input)
+
+
+def test_method():
+    class X(object):
+        @arguments(MyClass, bool)
+        def method(self, foo, bar=True):
+            pass
+        def non_decorated(self):
+            pass
+    X().method(MyClass())
+    X().method(MyClass(), True)
 
 
 def test_argspec():
