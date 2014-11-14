@@ -47,6 +47,17 @@ def test_invalid_kwarg():
         function2('should be bool', arg3=MyClass())
     _verify_error(exc.value, bool, MyClass, label='arg3')
 
+def test_multiple_types():
+    @arguments((int, str, dict))
+    def func(arg):
+        assert arg in (1, '1')
+    func(1)
+    func('1')
+    with pytest.raises(RuntimeError) as exc:
+        func(())
+    assert 'Argument 1 should have been <int>, <str> or <dict> but was <tuple>.' \
+        in str(exc.value)
+
 
 def test_convert_to_base_types():
     for type, input in [(int, '1'), (long, '1'), (float, '3.14'),

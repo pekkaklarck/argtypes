@@ -22,5 +22,14 @@ def arguments(*arg_types, **kwarg_types):
 def verify_argument(argument, expected_type, label):
     if expected_type is None or isinstance(argument, expected_type):
         return argument
-    raise RuntimeError('Argument {} should have been <{}> but was <{}>.'.format(
-        label, expected_type.__name__, type(argument).__name__))
+    raise RuntimeError('Argument {} should have been {} but was <{}>.'.format(
+        label, _format_expected(expected_type), type(argument).__name__))
+
+
+def _format_expected(expected):
+    if not isinstance(expected, tuple):
+        expected = (expected,)
+    expected = ['<{}>'.format(exp.__name__) for exp in expected]
+    if len(expected) == 1:
+        return expected[0]
+    return '{} or {}'.format(', '.join(expected[:-1]), expected[-1])
