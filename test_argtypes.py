@@ -1,7 +1,7 @@
 import unittest
 import inspect
 
-from arguments import arguments
+from argtypes import argtypes
 
 
 class MyType(object):
@@ -9,13 +9,13 @@ class MyType(object):
         self.value = value
 
 
-@arguments(MyType)
+@argtypes(MyType)
 def function(arg):
     assert isinstance(arg, MyType)
     return arg
 
 
-@arguments(str, arg2=int, arg3=int)
+@argtypes(str, arg2=int, arg3=int)
 def function2(arg1, arg2=2, **kwargs):
     assert isinstance(arg1, str)
     assert isinstance(arg2, int)
@@ -23,22 +23,22 @@ def function2(arg1, arg2=2, **kwargs):
     assert kwargs.get('arg3', arg2) == arg2
 
 
-@arguments((int, str, dict), (int,))
+@argtypes((int, str, dict), (int,))
 def function3(arg1, arg2=2):
     assert arg1 in (1, '1') and arg2 == 2
 
 
-@arguments()
+@argtypes()
 def function0():
     pass
 
 
 class NewStyle(object):
-    @arguments(MyType, int)
+    @argtypes(MyType, int)
     def method(self, foo, bar=42):
         assert isinstance(foo, MyType)
         assert abs(bar) == 42
-    @arguments()
+    @argtypes()
     def no_args(self):
         pass
     def non_decorated(self, arg):
@@ -46,11 +46,11 @@ class NewStyle(object):
 
 
 class OldStyle:
-    @arguments(MyType, int)
+    @argtypes(MyType, int)
     def method(self, foo, bar=42):
         assert isinstance(foo, MyType)
         assert abs(bar) == 42
-    @arguments()
+    @argtypes()
     def no_args(self):
         pass
     def non_decorated(self, arg):
@@ -102,7 +102,7 @@ class ValidArguments(unittest.TestCase):
 
     def test_kwarg_type_has_precedence_over_arg_type(self):
         # Specifying type as arg_type and kwarg_type could also be an error.
-        @arguments(str, arg=int)
+        @argtypes(str, arg=int)
         def func(arg):
             assert arg == 42
         func(42)
@@ -112,7 +112,7 @@ class ValidArguments(unittest.TestCase):
 
     def test_extra_types_are_allowed(self):
         # This could also be an error.
-        @arguments(str, int)
+        @argtypes(str, int)
         def func(arg):
             assert arg == '42'
         func(42)
@@ -122,7 +122,6 @@ class ValidArguments(unittest.TestCase):
 
 
 class InvalidArguments(unittest.TestCase):
-    func = function2
     method = NewStyle().method
 
     def _verify_error(self, label, expected, actual, func, *args, **kwargs):
@@ -159,13 +158,13 @@ class InvalidArguments(unittest.TestCase):
 class ArgumentTypeTypes(unittest.TestCase):
 
     def test_type_as_new_style_class(self):
-        @arguments(NewStyle)
+        @argtypes(NewStyle)
         def func(arg):
             assert isinstance(arg, NewStyle)
         func(NewStyle())
 
     def test_type_as_old_style_class(self):
-        @arguments(OldStyle)
+        @argtypes(OldStyle)
         def func(arg):
             assert isinstance(arg, OldStyle)
         func(OldStyle())
@@ -173,7 +172,7 @@ class ArgumentTypeTypes(unittest.TestCase):
     def test_type_cannot_be_non_class(self):
         for invalid in MyType(), 42, (int, 1), ((), int), (None,):
             try:
-                @arguments(invalid)
+                @argtypes(invalid)
                 def func(arg):
                     pass
             except TypeError as error:
@@ -185,7 +184,7 @@ class ArgumentTypeTypes(unittest.TestCase):
                 raise AssertionError('TypeError not raised')
 
     def test_none_is_wildcard(self):
-        @arguments(None, int, a3=None)
+        @argtypes(None, int, a3=None)
         def func(a1, a2, a3=2):
             assert a1 * a2 == a3
         func(1, 2)
@@ -199,14 +198,14 @@ class ArgumentConversion(unittest.TestCase):
         for arg_type, arg_value in [(int, '1'), (long, '1'), (float, '3.14'),
                                     (bool, 'xxx'), (bool, ''),
                                     (str, 1), (unicode, True)]:
-            @arguments(arg_type)
+            @argtypes(arg_type)
             def func(arg):
                 assert isinstance(arg, arg_type)
                 return arg
             assert func(arg_value) == arg_type(arg_value)
 
     def test_bool_handles_false_as_string(self):
-        @arguments(bool, arg2=bool)
+        @argtypes(bool, arg2=bool)
         def func(arg1, arg2=True):
             assert isinstance(arg1, bool)
             assert isinstance(arg2, bool)
@@ -223,23 +222,23 @@ class ArgumentConversion(unittest.TestCase):
 class CustomConverter(unittest.TestCase):
 
     def tearDown(self):
-        arguments.unregister_converter(MyType)
+        argtypes.unregister_converter(MyType)
 
     def test_type_itself(self):
-        arguments.register_converter(MyType)
+        argtypes.register_converter(MyType)
         arg = function('Kekkonen')
         assert arg.value == 'Kekkonen'
 
     def test_function(self):
-        arguments.register_converter(MyType, lambda arg: MyType(arg*2))
+        argtypes.register_converter(MyType, lambda arg: MyType(arg*2))
         assert function('foo').value == 'foofoo'
         assert function(21).value == 42
 
     def test_return_different_type(self):
-        @arguments(MyType)
+        @argtypes(MyType)
         def func(arg):
             return arg
-        arguments.register_converter(MyType, lambda arg: arg*2)
+        argtypes.register_converter(MyType, lambda arg: arg*2)
         assert func('foo') == 'foofoo'
         assert func(21) == 42
 
@@ -249,8 +248,8 @@ class CustomConverter(unittest.TestCase):
             if arg <= 0:
                 raise ValueError
             return arg
-        arguments.register_converter(MyType, positive)
-        @arguments(MyType)
+        argtypes.register_converter(MyType, positive)
+        @argtypes(MyType)
         def func(number):
             assert isinstance(number, int)
             assert number > 0
@@ -261,8 +260,8 @@ class CustomConverter(unittest.TestCase):
         self.assertRaises(ValueError, func, '0')
 
     def test_type_as_tuple(self):
-        arguments.register_converter((int, float), lambda arg: float(arg))
-        @arguments((int, float))
+        argtypes.register_converter((int, float), lambda arg: float(arg))
+        @argtypes((int, float))
         def func(arg):
             assert arg == 42
         func(42)
@@ -270,21 +269,21 @@ class CustomConverter(unittest.TestCase):
 
     def test_register_returns_old_value(self):
         converter = lambda arg: arg
-        assert arguments.register_converter(MyType) is None
-        assert arguments.register_converter(MyType, converter) is MyType
-        assert arguments.register_converter(MyType) is converter
-        assert arguments.register_converter(MyType) is MyType
+        assert argtypes.register_converter(MyType) is None
+        assert argtypes.register_converter(MyType, converter) is MyType
+        assert argtypes.register_converter(MyType) is converter
+        assert argtypes.register_converter(MyType) is MyType
 
     def test_unregister_returns_old_value(self):
-        assert arguments.unregister_converter(MyType) is None
-        arguments.register_converter(MyType)
-        assert arguments.unregister_converter(MyType) is MyType
-        assert arguments.unregister_converter(MyType) is None
+        assert argtypes.unregister_converter(MyType) is None
+        argtypes.register_converter(MyType)
+        assert argtypes.unregister_converter(MyType) is MyType
+        assert argtypes.unregister_converter(MyType) is None
 
     def test_registered_type_must_be_valid(self):
         for invalid in MyType(), 2, None, (int, 1), ((), int), (None,):
             try:
-                arguments.register_converter(invalid)
+                argtypes.register_converter(invalid)
             except TypeError as error:
                 self.assertEqual(str(error),
                                  'Argument type must be class or tuple of '

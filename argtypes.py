@@ -3,7 +3,7 @@ from types import ClassType
 from wrapt import decorator
 
 
-class arguments(object):
+class argtypes(object):
     _converters = {
         int: int, long: long, float: float, str: str, unicode: unicode,
         bool: lambda arg: bool(arg.upper() not in ('FALSE', '')
