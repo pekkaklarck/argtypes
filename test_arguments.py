@@ -185,13 +185,28 @@ class ArgumentTypeTypes(unittest.TestCase):
 class TestArgumentConversion(unittest.TestCase):
 
     def test_base_types(self):
-        for arg_type, input in [(int, '1'), (long, '1'), (float, '3.14'),
-                                (bool, 'xxx'), (str, 1), (unicode, True)]:
+        for arg_type, arg_value in [(int, '1'), (long, '1'), (float, '3.14'),
+                                    (bool, 'xxx'), (bool, ''),
+                                    (str, 1), (unicode, True)]:
             @arguments(arg_type)
             def func(arg):
                 assert isinstance(arg, arg_type)
                 return arg
-            assert func(input) == arg_type(input)
+            assert func(arg_value) == arg_type(arg_value)
+
+    def test_bool_handles_false_as_string(self):
+        @arguments(bool, arg2=bool)
+        def func(arg1, arg2=True):
+            assert isinstance(arg1, bool)
+            assert isinstance(arg2, bool)
+            assert arg1 is not arg2
+        func(False)
+        func(True, False)
+        func('non-empty', '')
+        func('True', False)
+        func('True', 'False')
+        func('FALSE', 'TRUE')
+        func('true', arg2='false')
 
 
 if __name__ == '__main__':

@@ -51,6 +51,8 @@ class arguments(object):
         if expected_type is None or isinstance(argument, expected_type):
             return argument
         if expected_type in BASE_TYPES:
+            if expected_type is bool and isinstance(argument, basestring):
+                return argument.upper() not in ('FALSE', '')
             try:
                 return expected_type(argument)
             except TypeError:
