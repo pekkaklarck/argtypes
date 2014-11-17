@@ -159,5 +159,17 @@ class ArgumentTypeTypes(unittest.TestCase):
         func('a', 2, a3='aa')
 
 
+class TestArgumentConversion(unittest.TestCase):
+
+    def test_base_types(self):
+        for arg_type, input in [(int, '1'), (long, '1'), (float, '3.14'),
+                                (bool, 'xxx'), (str, 1), (unicode, True)]:
+            @arguments(arg_type)
+            def func(arg):
+                assert isinstance(arg, arg_type)
+                return arg
+            assert func(input) == arg_type(input)
+
+
 if __name__ == '__main__':
     unittest.main()
