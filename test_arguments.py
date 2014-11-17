@@ -96,6 +96,26 @@ class ValidArguments(unittest.TestCase):
         self.assertEqual(inspect.getargspec(OldStyle().no_args),
                          (['self'], None, None, None))
 
+    def test_kwarg_type_has_precedence_over_arg_type(self):
+        # Specifying type as arg_type and kwarg_type could also be an error.
+        @arguments(str, arg=int)
+        def func(arg):
+            assert arg == 42
+        func(42)
+        func('42')
+        func(arg=42)
+        func(arg='42')
+
+    def test_extra_types_are_allowed(self):
+        # This could also be an error.
+        @arguments(str, int)
+        def func(arg):
+            assert arg == '42'
+        func(42)
+        func('42')
+        func(arg=42)
+        func(arg='42')
+
 
 class InvalidArguments(unittest.TestCase):
 
@@ -111,6 +131,9 @@ class InvalidArguments(unittest.TestCase):
 
     def test_defined_and_used_as_positional(self):
         self._verify_error(1, 'MyType', 'int', function, 42)
+
+    def test_defined_as_positional_and_used_as_kwarg(self):
+        self._verify_error('arg', 'MyType', 'int', function, arg=42)
 
     def test_defined_as_kwarg_used_as_positional(self):
         self._verify_error('arg2', 'int', 'MyType',
