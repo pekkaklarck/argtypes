@@ -1,84 +1,163 @@
+import unittest
 import inspect
-import pytest
-
-
 
 from arguments import arguments
 
 
-class MyClass(object):
+class MyType(object):
     pass
 
 
-@arguments(MyClass)
+@arguments(MyType)
 def function(arg):
+    assert isinstance(arg, MyType)
     return arg
 
-@arguments(arg2=int, arg3=bool)
+
+@arguments(arg2=int, arg3=int)
 def function2(arg1, arg2=2, **kwargs):
+    assert isinstance(arg2, int)
     assert arg1 * 2 == arg2
-    assert kwargs.get('arg3', True) is True
+    assert kwargs.get('arg3', arg2) == arg2
 
 
-def _verify_error(exception, expected, actual, label=1):
-    msg = 'Argument {} should have been <{}> but was <{}>.'.format(
-        label, expected.__name__, actual.__name__)
-    assert msg in str(exception)
+@arguments((int, str, dict), (int,))
+def function3(arg1, arg2=2):
+    assert arg1 in (1, '1') and arg2 == 2
 
 
-def test_valid_arguments():
-    arg = MyClass()
-    assert function(arg) is arg
-    function2(1, 2)
-    function2(arg2=2, arg1=1, arg3=True)
-
-def test_invalid_argument():
-    with pytest.raises(RuntimeError) as exc:
-        function(42)
-    _verify_error(exc.value, MyClass, int)
-
-def test_invalid_argument_defined_as_kwarg():
-    with pytest.raises(RuntimeError) as exc:
-        function2('non', 'ints')
-    _verify_error(exc.value, int, str, label=2)
-
-def test_invalid_kwarg():
-    with pytest.raises(RuntimeError) as exc:
-        function2('should be bool', arg3=MyClass())
-    _verify_error(exc.value, bool, MyClass, label='arg3')
+@arguments()
+def function0():
+    pass
 
 
-def test_multiple_types():
-    @arguments((int, str, dict))
-    def func(arg):
-        assert arg in (1, '1')
-    func(1)
-    func('1')
-    with pytest.raises(RuntimeError) as exc:
-        func(())
-    assert 'Argument 1 should have been <int>, <str> or <dict> but was <tuple>.' \
-        in str(exc.value)
+class NewStyle(object):
+    @arguments(MyType, bool)
+    def method(self, foo, bar=True):
+        pass
+    @arguments()
+    def no_args(self):
+        pass
+    def non_decorated(self, arg):
+        pass
 
 
-def test_convert_to_base_types():
-    for type, input in [(int, '1'), (long, '1'), (float, '3.14'),
-                        (bool, 'True'), (str, 1), (unicode, True)]:
-        @arguments(type)
+class OldStyle:
+    @arguments(MyType, bool)
+    def method(self, foo, bar=True):
+        pass
+    @arguments()
+    def no_args(self):
+        pass
+    def non_decorated(self, arg):
+        pass
+
+
+class ValidArguments(unittest.TestCase):
+
+    def test_positional(self):
+        arg = MyType()
+        assert function(arg) is arg
+        function2(1, 2)
+
+    def test_named(self):
+        function2(arg2=2, arg1=1, arg3=2)
+
+    def test_multiple_types(self):
+        function3(1)
+        function3('1')
+        function3('1', 2)
+        function3(arg2=2, arg1=1)
+
+    def test_no_arguments(self):
+        function0()
+
+    def test_method_in_new_style_class(self):
+        NewStyle().method(MyType())
+        NewStyle().method(MyType(), True)
+        NewStyle().method(bar=False, foo=MyType())
+        NewStyle().no_args()
+        NewStyle().non_decorated(42)
+
+    def test_method_in_old_style_class(self):
+        OldStyle().method(MyType())
+        OldStyle().method(MyType(), True)
+        OldStyle().method(bar=False, foo=MyType())
+        OldStyle().no_args()
+        OldStyle().non_decorated(42)
+
+    def test_argspec_is_preserved(self):
+        self.assertEqual(inspect.getargspec(function),
+                         (['arg'], None, None, None))
+        self.assertEqual(inspect.getargspec(function2),
+                         (['arg1', 'arg2'], None, 'kwargs', (2,)))
+        self.assertEqual(inspect.getargspec(NewStyle().method),
+                         (['self', 'foo', 'bar'], None, None, (True,)))
+        self.assertEqual(inspect.getargspec(OldStyle().no_args),
+                         (['self'], None, None, None))
+
+
+class InvalidArguments(unittest.TestCase):
+
+    def _verify_error(self, label, expected, actual, func, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except RuntimeError, exception:
+            self.assertEqual(str(exception),
+                             'Argument %s should have been <%s> but was <%s>.'
+                             % (label, expected, actual))
+        else:
+            raise AssertionError('RuntimeError not raised')
+
+    def test_defined_and_used_as_positional(self):
+        self._verify_error(1, 'MyType', 'int', function, 42)
+
+    def test_defined_as_kwarg_used_as_positional(self):
+        self._verify_error('arg2', 'int', 'MyType',
+                           function2, 'whatever', MyType())
+
+    def test_defined_and_used_as_kwarg(self):
+        self._verify_error('arg3', 'int', 'MyType',
+                           function2, 1234, arg3=MyType())
+
+    def test_multiple_types(self):
+        self._verify_error(1, 'int>, <str> or <dict', 'tuple', function3, ())
+        self._verify_error(2, 'int', 'tuple', function3, 1, ())
+
+
+class ArgumentTypeTypes(unittest.TestCase):
+
+    def test_type_as_new_style_class(self):
+        @arguments(NewStyle)
         def func(arg):
-            return arg
-        assert func(input) == type(input)
+            assert isinstance(arg, NewStyle)
+        func(NewStyle())
+
+    def test_type_as_old_style_class(self):
+        @arguments(OldStyle)
+        def func(arg):
+            assert isinstance(arg, OldStyle)
+        func(OldStyle())
+
+    def test_type_cannot_be_non_class(self):
+        try:
+            @arguments(MyType())
+            def func(arg):
+                pass
+        except TypeError, err:
+            self.assertEqual(str(err), 'Argument type must be class, tuple of '
+                             'classes or None, got <MyType> instance instead.')
+        else:
+            raise AssertionError('TypeError not raised')
+
+    def test_none_is_wildcard(self):
+        @arguments(None, int, a3=None)
+        def func(a1, a2, a3=2):
+            assert a1 * a2 == a3
+        func(1, 2)
+        func(1, 2, 2)
+        func('a', 2, a3='aa')
 
 
-def test_method():
-    class X(object):
-        @arguments(MyClass, bool)
-        def method(self, foo, bar=True):
-            pass
-        def non_decorated(self):
-            pass
-    X().method(MyClass())
-    X().method(MyClass(), True)
-
-
-def test_argspec():
-    assert inspect.getargspec(function) == (['arg'], None, None, None)
+if __name__ == '__main__':
+    unittest.main()
