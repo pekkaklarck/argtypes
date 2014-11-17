@@ -14,10 +14,11 @@ def function(arg):
     return arg
 
 
-@arguments(arg2=int, arg3=int)
+@arguments(str, arg2=int, arg3=int)
 def function2(arg1, arg2=2, **kwargs):
+    assert isinstance(arg1, str)
     assert isinstance(arg2, int)
-    assert arg1 * 2 == arg2
+    assert int(arg1) * 2 == arg2
     assert kwargs.get('arg3', arg2) == arg2
 
 
@@ -32,9 +33,10 @@ def function0():
 
 
 class NewStyle(object):
-    @arguments(MyType, bool)
-    def method(self, foo, bar=True):
-        pass
+    @arguments(MyType, int)
+    def method(self, foo, bar=42):
+        assert isinstance(foo, MyType)
+        assert abs(bar) == 42
     @arguments()
     def no_args(self):
         pass
@@ -43,9 +45,10 @@ class NewStyle(object):
 
 
 class OldStyle:
-    @arguments(MyType, bool)
-    def method(self, foo, bar=True):
-        pass
+    @arguments(MyType, int)
+    def method(self, foo, bar=42):
+        assert isinstance(foo, MyType)
+        assert abs(bar) == 42
     @arguments()
     def no_args(self):
         pass
@@ -74,15 +77,15 @@ class ValidArguments(unittest.TestCase):
 
     def test_method_in_new_style_class(self):
         NewStyle().method(MyType())
-        NewStyle().method(MyType(), True)
-        NewStyle().method(bar=False, foo=MyType())
+        NewStyle().method(MyType(), 42)
+        NewStyle().method(bar=-42, foo=MyType())
         NewStyle().no_args()
         NewStyle().non_decorated(42)
 
     def test_method_in_old_style_class(self):
         OldStyle().method(MyType())
-        OldStyle().method(MyType(), True)
-        OldStyle().method(bar=False, foo=MyType())
+        OldStyle().method(MyType(), 42)
+        OldStyle().method(bar=-42, foo=MyType())
         OldStyle().no_args()
         OldStyle().non_decorated(42)
 
@@ -92,7 +95,7 @@ class ValidArguments(unittest.TestCase):
         self.assertEqual(inspect.getargspec(function2),
                          (['arg1', 'arg2'], None, 'kwargs', (2,)))
         self.assertEqual(inspect.getargspec(NewStyle().method),
-                         (['self', 'foo', 'bar'], None, None, (True,)))
+                         (['self', 'foo', 'bar'], None, None, (42,)))
         self.assertEqual(inspect.getargspec(OldStyle().no_args),
                          (['self'], None, None, None))
 
@@ -118,6 +121,8 @@ class ValidArguments(unittest.TestCase):
 
 
 class InvalidArguments(unittest.TestCase):
+    func = function2
+    method = NewStyle().method
 
     def _verify_error(self, label, expected, actual, func, *args, **kwargs):
         try:
@@ -131,17 +136,19 @@ class InvalidArguments(unittest.TestCase):
 
     def test_defined_and_used_as_positional(self):
         self._verify_error('arg', 'MyType', 'int', function, 42)
+        self._verify_error('foo', 'MyType', 'int', self.method, 42)
 
     def test_defined_as_positional_and_used_as_kwarg(self):
         self._verify_error('arg', 'MyType', 'int', function, arg=42)
+        self._verify_error('foo', 'MyType', 'int', self.method, foo=42)
 
     def test_defined_as_kwarg_used_as_positional(self):
-        self._verify_error('arg2', 'int', 'MyType',
-                           function2, 'whatever', MyType())
+        self._verify_error('arg2', 'int', 'MyType', function2, 'xxx', MyType())
+        self._verify_error('bar', 'int', 'tuple', self.method, MyType(), ())
 
     def test_defined_and_used_as_kwarg(self):
-        self._verify_error('arg3', 'int', 'MyType',
-                           function2, 1234, arg3=MyType())
+        self._verify_error('arg3', 'int', 'MyType', function2, 0, arg3=MyType())
+        self._verify_error('bar', 'int', 'tuple', self.method, MyType(), bar=())
 
     def test_multiple_types(self):
         self._verify_error('arg1', 'int>, <str> or <dict', 'tuple', function3, ())

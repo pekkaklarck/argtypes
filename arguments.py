@@ -22,6 +22,8 @@ class arguments(object):
     @decorator
     def __call__(self, wrapped, instance, args, kwargs):
         argspec = inspect.getargspec(wrapped).args
+        if instance:
+            argspec.pop(0)    # drop self
         args = tuple(self._handle_args(args, argspec))
         kwargs = dict(self._handle_kwargs(kwargs, argspec))
         return wrapped(*args, **kwargs)
