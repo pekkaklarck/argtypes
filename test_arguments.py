@@ -5,7 +5,8 @@ from arguments import arguments
 
 
 class MyType(object):
-    pass
+    def __init__(self, value=None):
+        self.value = value
 
 
 @arguments(MyType)
@@ -189,7 +190,7 @@ class ArgumentTypeTypes(unittest.TestCase):
         func('a', 2, a3='aa')
 
 
-class TestArgumentConversion(unittest.TestCase):
+class ArgumentConversion(unittest.TestCase):
 
     def test_base_types(self):
         for arg_type, arg_value in [(int, '1'), (long, '1'), (float, '3.14'),
@@ -214,6 +215,72 @@ class TestArgumentConversion(unittest.TestCase):
         func('True', 'False')
         func('FALSE', 'TRUE')
         func('true', arg2='false')
+
+
+class CustomConverter(unittest.TestCase):
+
+    def tearDown(self):
+        arguments.unregister_converter(MyType)
+
+    def test_type_itself(self):
+        arguments.register_converter(MyType)
+        arg = function('Kekkonen')
+        assert arg.value == 'Kekkonen'
+
+    def test_function(self):
+        arguments.register_converter(MyType, lambda arg: MyType(arg*2))
+        assert function('foo').value == 'foofoo'
+        assert function(21).value == 42
+
+    def test_return_different_type(self):
+        @arguments(MyType)
+        def func(arg):
+            return arg
+        arguments.register_converter(MyType, lambda arg: arg*2)
+        assert func('foo') == 'foofoo'
+        assert func(21) == 42
+
+    def test_conversion_error(self):
+        def positive(arg):
+            arg = int(arg)
+            if arg <= 0:
+                raise ValueError
+            return arg
+        arguments.register_converter(MyType, positive)
+        @arguments(MyType)
+        def func(number):
+            assert isinstance(number, int)
+            assert number > 0
+        func(1)
+        func('2')
+        self.assertRaises(ValueError, func, 'non a number')
+        self.assertRaises(ValueError, func, -1)
+        self.assertRaises(ValueError, func, '0')
+
+    def test_type_as_tuple(self):
+        arguments.register_converter((int, float), lambda arg: float(arg))
+        @arguments((int, float))
+        def func(arg):
+            assert arg == 42
+        func(42)
+        func('42')
+
+    def test_register_returns_old_value(self):
+        converter = lambda arg: arg
+        assert arguments.register_converter(MyType) is None
+        assert arguments.register_converter(MyType, converter) is MyType
+        assert arguments.register_converter(MyType) is converter
+        assert arguments.register_converter(MyType) is MyType
+
+    def test_unregister_returns_old_value(self):
+        assert arguments.unregister_converter(MyType) is None
+        arguments.register_converter(MyType)
+        assert arguments.unregister_converter(MyType) is MyType
+        assert arguments.unregister_converter(MyType) is None
+
+    def test_registered_type_must_be_valid(self):
+        self.assertRaises(TypeError, arguments.register_converter, MyType())
+        self.assertRaises(TypeError, arguments.register_converter, 2)
 
 
 if __name__ == '__main__':
