@@ -130,7 +130,7 @@ class InvalidArguments(unittest.TestCase):
             raise AssertionError('RuntimeError not raised')
 
     def test_defined_and_used_as_positional(self):
-        self._verify_error(1, 'MyType', 'int', function, 42)
+        self._verify_error('arg', 'MyType', 'int', function, 42)
 
     def test_defined_as_positional_and_used_as_kwarg(self):
         self._verify_error('arg', 'MyType', 'int', function, arg=42)
@@ -144,8 +144,8 @@ class InvalidArguments(unittest.TestCase):
                            function2, 1234, arg3=MyType())
 
     def test_multiple_types(self):
-        self._verify_error(1, 'int>, <str> or <dict', 'tuple', function3, ())
-        self._verify_error(2, 'int', 'tuple', function3, 1, ())
+        self._verify_error('arg1', 'int>, <str> or <dict', 'tuple', function3, ())
+        self._verify_error('arg2', 'int', 'tuple', function3, 1, ())
 
 
 class ArgumentTypeTypes(unittest.TestCase):

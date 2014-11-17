@@ -33,7 +33,7 @@ class arguments(object):
             if name in self._kwarg_types:
                 arg = self._handle_arg(arg, self._kwarg_types[name], name)
             elif index < type_count:
-                arg = self._handle_arg(arg, self._arg_types[index], index+1)
+                arg = self._handle_arg(arg, self._arg_types[index], name)
             yield arg
 
     def _handle_kwargs(self, kwargs, argspec):
