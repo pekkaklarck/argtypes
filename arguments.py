@@ -1,24 +1,23 @@
 import inspect
 from types import ClassType, NoneType
-from decorator import decorator
-
+from wrapt import decorator
 
 BASE_TYPES = [int, long, bool, float, str, unicode]
 
 
-def arguments(*arg_types, **kwarg_types):
-    validate_types(arg_types + tuple(kwarg_types.values()))
+class arguments(object):
+
+    def __init__(self, *arg_types, **kwarg_types):
+        validate_types(arg_types + tuple(kwarg_types.values()))
+        self.arg_types = arg_types
+        self.kwarg_types = kwarg_types
+
     @decorator
-    def argument_handler(func, *args, **kwargs):
-        if args and is_method(func, args[0]):
-            local_arg_types = (None,) + arg_types
-        else:
-            local_arg_types = arg_types
-        argspec = inspect.getargspec(func).args
-        args = handle_args(args, argspec, local_arg_types, kwarg_types)
-        kwargs = dict(handle_kwargs(kwargs, kwarg_types))
-        return func(*args, **kwargs)
-    return argument_handler
+    def __call__(self, wrapped, instance, args, kwargs):
+        argspec = inspect.getargspec(wrapped).args
+        args = handle_args(args, argspec, self.arg_types, self.kwarg_types)
+        kwargs = dict(handle_kwargs(kwargs, self.kwarg_types))
+        return wrapped(*args, **kwargs)
 
 
 def validate_types(arg_types):
@@ -42,12 +41,6 @@ def handle_kwargs(kwargs, kwarg_types):
         if name in kwarg_types:
             arg = verify_argument(arg, kwarg_types[name], name)
         yield name, arg
-
-
-def is_method(func, self):
-    method = getattr(self, func.__name__, None)
-    im_func = getattr(method, 'im_func', None)
-    return getattr(im_func, 'undecorated', None) is func
 
 
 def verify_argument(argument, expected_type, label):
