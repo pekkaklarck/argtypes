@@ -128,8 +128,8 @@ class InvalidArguments(unittest.TestCase):
     def _verify_error(self, label, expected, actual, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except RuntimeError, exception:
-            self.assertEqual(str(exception),
+        except RuntimeError as error:
+            self.assertEqual(str(error),
                              'Argument %s should have been <%s> but was <%s>.'
                              % (label, expected, actual))
         else:
@@ -171,15 +171,18 @@ class ArgumentTypeTypes(unittest.TestCase):
         func(OldStyle())
 
     def test_type_cannot_be_non_class(self):
-        try:
-            @arguments(MyType())
-            def func(arg):
-                pass
-        except TypeError, err:
-            self.assertEqual(str(err), 'Argument type must be class, tuple of '
-                             'classes or None, got <MyType> instance instead.')
-        else:
-            raise AssertionError('TypeError not raised')
+        for invalid in MyType(), 42, (int, 1), ((), int), (None,):
+            try:
+                @arguments(invalid)
+                def func(arg):
+                    pass
+            except TypeError as error:
+                self.assertEqual(str(error),
+                                 'Argument type must be class, tuple of '
+                                 'classes or None, got <%s> instance '
+                                 'instead.' % type(invalid).__name__)
+            else:
+                raise AssertionError('TypeError not raised')
 
     def test_none_is_wildcard(self):
         @arguments(None, int, a3=None)
@@ -279,8 +282,16 @@ class CustomConverter(unittest.TestCase):
         assert arguments.unregister_converter(MyType) is None
 
     def test_registered_type_must_be_valid(self):
-        self.assertRaises(TypeError, arguments.register_converter, MyType())
-        self.assertRaises(TypeError, arguments.register_converter, 2)
+        for invalid in MyType(), 2, None, (int, 1), ((), int), (None,):
+            try:
+                arguments.register_converter(invalid)
+            except TypeError as error:
+                self.assertEqual(str(error),
+                                 'Argument type must be class or tuple of '
+                                 'classes, got <%s> instance instead.'
+                                 % type(invalid).__name__)
+            else:
+                raise AssertionError('TypeError not raised')
 
 
 if __name__ == '__main__':

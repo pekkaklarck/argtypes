@@ -1,5 +1,5 @@
 import inspect
-from types import ClassType, NoneType
+from types import ClassType
 from wrapt import decorator
 
 
@@ -16,16 +16,24 @@ class arguments(object):
         self._kwarg_types = kwarg_types
 
     @classmethod
-    def _validate_types(cls, arg_types):
+    def _validate_types(cls, arg_types, allow_none=True):
         for arg_type in arg_types:
-            if not isinstance(arg_type, (type, ClassType, tuple, NoneType)):
-                raise TypeError('Argument type must be class, tuple of classes '
-                                'or None, got <%s> instance instead.'
-                                % type(arg_type).__name__)
+            if not cls._is_valid_type(arg_type, allow_none):
+                allowed = 'class, tuple of classes or None' \
+                    if allow_none else 'class or tuple of classes'
+                raise TypeError('Argument type must be %s, got <%s> instance '
+                                'instead.' % (allowed, type(arg_type).__name__))
+
+    @classmethod
+    def _is_valid_type(cls, arg_type, allow_none=True, allow_tuple=True):
+        if isinstance(arg_type, tuple) and allow_tuple:
+            return all(cls._is_valid_type(at, False, False) for at in arg_type)
+        return (isinstance(arg_type, (type, ClassType)) or
+                arg_type is None and allow_none)
 
     @classmethod
     def register_converter(cls, arg_type, converter=None):
-        cls._validate_types([arg_type])
+        cls._validate_types([arg_type], allow_none=False)
         old = cls._converters.get(arg_type)
         cls._converters[arg_type] = converter or arg_type
         return old
