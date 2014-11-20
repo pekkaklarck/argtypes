@@ -267,6 +267,14 @@ class CustomConverter(unittest.TestCase):
         func(42)
         func('42')
 
+    def test_type_as_tuple_in_different_order(self):
+        argtypes.register_converter((int, float), lambda arg: float(arg))
+        @argtypes((float, int))
+        def func(arg):
+            assert arg == 42
+        func(42)
+        func('42')
+
     def test_register_returns_old_value(self):
         converter = lambda arg: arg
         assert argtypes.register_converter(MyType) is None

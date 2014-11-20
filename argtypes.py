@@ -4,29 +4,56 @@ from types import ClassType
 from wrapt import decorator
 
 
+__all__ = ['argtypes']
+
+
+class Converters(object):
+
+    def __init__(self):
+        self._converters = {int: int, long: long, float: float,
+                            str: str, unicode: unicode, bool: self._bool}
+
+    def _bool(self, value):
+        if isinstance(value, (str, unicode)):
+            return value.upper() not in ('FALSE', '')
+        return bool(value)
+
+    def register(self, arg_type, converter=None):
+        TypeValidator(allow_none=False).validate(arg_type)
+        old = self._converters.get(arg_type)
+        self._converters[arg_type] = converter or arg_type
+        return old
+
+    def unregister(self, arg_type):
+        return self._converters.pop(arg_type, None)
+
+    def find(self, arg_type):
+        if isinstance(arg_type, tuple):
+            return self._find_tuple(arg_type)
+        return self._converters.get(arg_type)
+
+    def _find_tuple(self, arg_type):
+        arg_type = set(arg_type)
+        for registered in self._converters:
+            if isinstance(registered, tuple) and arg_type == set(registered):
+                return self._converters[registered]
+        return None
+
+
 class argtypes(object):
-    _converters = {
-        int: int, long: long, float: float, str: str, unicode: unicode,
-        bool: lambda arg: bool(arg.upper() not in ('FALSE', '')
-                               if isinstance(arg, (str, unicode)) else arg)
-    }
+    _converters = Converters()
 
     def __init__(self, *arg_types, **kwarg_types):
-        TypeValidator().validate(*arg_types, **kwarg_types)
         self._arg_handler = ArgumentHandler(arg_types, kwarg_types,
                                             self._converters)
 
     @classmethod
     def register_converter(cls, arg_type, converter=None):
-        TypeValidator(allow_none=False).validate(arg_type)
-        old = cls._converters.get(arg_type)
-        cls._converters[arg_type] = converter or arg_type
-        return old
+        return cls._converters.register(arg_type, converter)
 
     @classmethod
     def unregister_converter(cls, arg_type):
-        if arg_type in cls._converters:
-            return cls._converters.pop(arg_type)
+        return cls._converters.unregister(arg_type)
 
     @decorator
     def __call__(self, wrapped, instance, args, kwargs):
@@ -63,6 +90,7 @@ class TypeValidator(object):
 class ArgumentHandler(object):
 
     def __init__(self, arg_types, kwarg_types, converters):
+        TypeValidator().validate(*arg_types, **kwarg_types)
         self._arg_types = arg_types
         self._kwarg_types = kwarg_types
         self._converters = converters
@@ -96,8 +124,8 @@ class ArgumentHandler(object):
     def _handle_arg(self, argument, expected_type, label):
         if expected_type is None or isinstance(argument, expected_type):
             return argument
-        if expected_type in self._converters:
-            converter = self._converters[expected_type]
+        converter = self._converters.find(expected_type)
+        if converter:
             try:
                 return converter(argument)
             except TypeError:
