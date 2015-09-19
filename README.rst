@@ -1,9 +1,10 @@
 Decorator for argument type verification and conversion
 =======================================================
 
-Initial target usage is with `Robot Framework <http://robotframework.org>`_
-test libraries that want to verify that keywords get correct arguments
-and/or that want strings to be automatically converted to base types.
+This module provides ``argtypes`` decorator that can verify argument types
+of Python functions and convert arguments to expected types. The main usage
+is with `Robot Framework <http://robotframework.org>`_ test libraries that
+want to verify/convert arguments their keywords accept.
 
 Requires `wrapt <https://pypi.python.org/pypi/wrapt>`_ that can be installed
 with::
